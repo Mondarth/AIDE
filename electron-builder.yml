@@ -21,6 +21,9 @@ linux:
   target: [AppImage, deb]
   category: Development
   maintainer: Ulenar of Mondarth
+# The default deb name uses the package name, whose scope (@mondarth/) would become a directory.
+deb:
+  artifactName: aide_${version}_${arch}.${ext}
 win:
   target: [nsis]
 nsis:
