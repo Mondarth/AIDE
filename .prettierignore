@@ -10,6 +10,8 @@ pnpm-lock.yaml
 /playwright-report/
 /releases/
 src/lib/paraglide/
+project.inlang/*
+!project.inlang/settings.json
 docs/_build/
 docs/api/reference/
 CHANGELOG.md
