@@ -8,6 +8,11 @@ updates:
     commit-message:
       prefix: build(deps)
       prefix-development: build(deps-dev)
+    ignore:
+      # Version 10 needs conventional-changelog-writer 9, but semantic-release's notes generator
+      # still uses writer 8 (tests/unit/config/release-notes.test.ts). Lift this once it upgrades.
+      - dependency-name: conventional-changelog-conventionalcommits
+        update-types: ['version-update:semver-major']
     groups:
       svelte:
         patterns: ['svelte', 'svelte-check', '@sveltejs/*', 'prettier-plugin-svelte', 'eslint-plugin-svelte']
