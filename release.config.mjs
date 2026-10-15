@@ -1,4 +1,11 @@
 /**
+ * Sets the release version in package.json. This replaces @semantic-release/npm, which runs
+ * `npm version`: package.json requires pnpm through devEngines, so npm refuses to run here.
+ * Bring that plugin back (with pnpm) only when the package is published to a registry.
+ */
+export const bumpVersionCmd = 'pnpm pkg set version=${nextRelease.version}';
+
+/**
  * semantic-release configuration.
  *
  * Releases are cut from `main` only; day-to-day work lands on `dev`. Version numbers follow
@@ -16,13 +23,12 @@ export default {
     ['@semantic-release/commit-analyzer', { preset: 'conventionalcommits' }],
     ['@semantic-release/release-notes-generator', { preset: 'conventionalcommits' }],
     ['@semantic-release/changelog', { changelogFile: 'CHANGELOG.md' }],
-    // Bumps the version in package.json. Flip npmPublish when the package is ready for the registry.
-    ['@semantic-release/npm', { npmPublish: false }],
     [
       '@semantic-release/exec',
       {
-        // Runs after package.json has been bumped, so the build carries the new version.
+        // Bumps package.json first, so the build carries the new version.
         prepareCmd: [
+          bumpVersionCmd,
           `sed -i "s/^release = .*/release = '\${nextRelease.version}'/" docs/conf.py`,
           'pnpm build',
           'mkdir -p releases',
