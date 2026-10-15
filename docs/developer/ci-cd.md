@@ -26,7 +26,7 @@ Superseded runs of the same pull request are cancelled.
 
 ## Docs (`docs.yml`)
 
-Generates the API reference, builds the Sphinx image (cached) and the site, and keeps the HTML as an artifact. Called by Dev CI and Release; can also be started by hand.
+Generates the API reference, builds the Sphinx image (cached) and the site, and keeps the HTML as an artifact. Called by Dev CI; can also be started by hand. The build steps live in the `build-docs` composite action (`.github/actions/build-docs`), which the release workflow's Pages job also uses to build the documentation from the release tag.
 
 (release-workflow)=
 
@@ -46,6 +46,8 @@ Runs on every push to `main`:
    - **Desktop installers**: built on Linux, Windows and macOS and attached to the release.
    - **Bring dev up to date**: fast-forwards `dev` to the release commit, or opens a pull request from `main` to `dev` if it cannot.
 4. **Pages**: builds the documentation and the Storybook for the released tag (or for `main`, if nothing was released) and deploys them to GitHub Pages.
+
+It can also be started by hand from the Actions tab (**Release** > **Run workflow**, on `main`; other branches are skipped). That releases only if there are releasable commits, and otherwise just publishes the documentation again. Use it when a Pages deployment fails or stalls: Pages names a deployment after its commit, so once the deployment for a commit has been cancelled, re-running that job cannot replace it, but a manual run deploys the current head of `main`.
 
 The jobs that push to the protected branches authenticate as the release App (see {ref}`release-app`).
 
