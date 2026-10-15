@@ -13,6 +13,11 @@ updates:
       # still uses writer 8 (tests/unit/config/release-notes.test.ts). Lift this once it upgrades.
       - dependency-name: conventional-changelog-conventionalcommits
         update-types: ['version-update:semver-major']
+      # The types must match the oldest Node.js we support (engines, .nvmrc, Electron's Node), or
+      # newer APIs type-check and then fail at run time. Moved with the baseline; see
+      # .github/workflows/node-baseline.yml.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       svelte:
         patterns: ['svelte', 'svelte-check', '@sveltejs/*', 'prettier-plugin-svelte', 'eslint-plugin-svelte']
@@ -38,6 +43,10 @@ updates:
       interval: weekly
     commit-message:
       prefix: build(docker)
+    ignore:
+      # The Node.js major is the project baseline, shared with Electron; moved by hand with it.
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
 
   # Python requirements and base image of the documentation build.
   - package-ecosystem: pip

@@ -1,0 +1,43 @@
+name: Node.js baseline
+
+# Watches for the moment the project can move to a newer Node.js major: an LTS release that the
+# newest stable Electron bundles (scripts/node-baseline.ts). Opens one issue per candidate major;
+# close it to decline, and it is not opened again.
+
+on:
+  schedule:
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check for a newer Node.js baseline
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Check the Node.js and Electron releases
+        id: check
+        run: node scripts/node-baseline.ts | tee report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open an issue for the candidate
+        if: steps.check.outputs.candidate != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: Move the Node.js baseline to ${{ steps.check.outputs.candidate }}
+        run: |
+          existing=$(gh issue list --state all --search "\"$TITLE\" in:title" --json title \
+            --jq '[.[] | select(.title == env.TITLE)] | length')
+          if [ "$existing" -gt 0 ]; then
+            echo "An issue titled \"$TITLE\" already exists."
+          else
+            gh issue create --title "$TITLE" --body-file report.md
+          fi
