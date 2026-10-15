@@ -8,7 +8,7 @@
  * The Docker image and the desktop installers are built by later jobs of the release workflow,
  * from the tag this creates.
  *
- * @type {import('semantic-release').GlobalConfig}
+ * @type {import('semantic-release').Options}
  */
 export default {
   branches: ['main'],
