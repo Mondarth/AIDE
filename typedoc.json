@@ -1,0 +1,29 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "AIDE",
+  "entryPoints": [
+    "src/lib/index.ts",
+    "host/server.ts",
+    "host/cli.ts",
+    "host/errors.ts",
+    "host/electron/main.ts",
+    "host/electron/window.ts"
+  ],
+  "tsconfig": "tsconfig.json",
+  "out": "docs/api/reference",
+  "plugin": ["typedoc-plugin-markdown"],
+  "readme": "none",
+  "entryFileName": "index",
+  "outputFileStrategy": "modules",
+  "hidePageHeader": true,
+  "hideBreadcrumbs": true,
+  "useCodeBlocks": true,
+  "parametersFormat": "table",
+  "interfacePropertiesFormat": "table",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "sort": ["kind", "alphabetical"],
+  "treatWarningsAsErrors": true,
+  "validation": { "notExported": true, "invalidLink": true, "notDocumented": false }
+}

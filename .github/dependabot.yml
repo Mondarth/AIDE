@@ -1,0 +1,60 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build(deps)
+      prefix-development: build(deps-dev)
+    groups:
+      svelte:
+        patterns: ['svelte', 'svelte-check', '@sveltejs/*', 'prettier-plugin-svelte', 'eslint-plugin-svelte']
+      storybook:
+        patterns: ['storybook', '@storybook/*']
+      vitest:
+        patterns: ['vitest', '@vitest/*', 'vitest-browser-svelte']
+      playwright:
+        patterns: ['playwright', '@playwright/*', '@axe-core/playwright']
+      lint:
+        patterns: ['eslint', '@eslint/*', 'eslint-*', 'typescript-eslint', 'globals', 'prettier']
+      commit-tooling:
+        patterns: ['@commitlint/*', 'commitizen', 'cz-*', 'husky', 'lint-staged']
+      release:
+        patterns: ['semantic-release', '@semantic-release/*', 'conventional-changelog-*']
+      electron:
+        patterns: ['electron', 'electron-builder']
+
+  - package-ecosystem: docker
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build(docker)
+
+  # Python requirements and base image of the documentation build.
+  - package-ecosystem: pip
+    directory: /docs
+    target-branch: dev
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build(docs)
+
+  - package-ecosystem: docker
+    directory: /docs
+    target-branch: dev
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build(docs)
+
+  - package-ecosystem: github-actions
+    directories: ['/', '/.github/actions/*']
+    target-branch: dev
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci(workflows)

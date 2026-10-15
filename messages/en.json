@@ -1,0 +1,12 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "app_name": "AIDE",
+  "app_full_name": "Adventure Integrated Development Environment",
+  "app_tagline": "Design, build and test your adventures in one place.",
+  "app_version": "Version {version}",
+  "cli_usage": "Usage: aide [options]\n\nStart the AIDE web application.\n\nOptions:\n  -H, --host <address>  Address to listen on (default: {host}, env: HOST)\n  -p, --port <number>   Port to listen on (default: {port}, env: PORT)\n  -v, --version         Print the version and exit\n  -h, --help            Print this help and exit",
+  "cli_listening": "AIDE {version} is running at {url}",
+  "cli_stopping": "Stopping AIDE…",
+  "cli_invalid_port": "Invalid port \"{value}\": expected a whole number from 0 to 65535.",
+  "cli_error": "aide: {message}"
+}

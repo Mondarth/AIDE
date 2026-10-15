@@ -1,0 +1,43 @@
+/* Design tokens. Components use these variables and never hard-code colours or fonts. */
+:root {
+  --aide-font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --aide-font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  --aide-color-bg: #fbfaf7;
+  --aide-color-surface: #ffffff;
+  --aide-color-text: #1d1b16;
+  --aide-color-text-muted: #5c574c;
+  --aide-color-accent: #7a3e00;
+  --aide-color-border: #ddd6c8;
+
+  --aide-space-1: 0.25rem;
+  --aide-space-2: 0.5rem;
+  --aide-space-3: 1rem;
+  --aide-space-4: 2rem;
+  --aide-radius: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --aide-color-bg: #16140f;
+    --aide-color-surface: #201d17;
+    --aide-color-text: #efebe2;
+    --aide-color-text-muted: #b5ad9c;
+    --aide-color-accent: #f0a64a;
+    --aide-color-border: #3a352b;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--aide-font-sans);
+  background: var(--aide-color-bg);
+  color: var(--aide-color-text);
+  line-height: 1.5;
+}

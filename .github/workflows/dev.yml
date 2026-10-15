@@ -1,0 +1,241 @@
+name: Dev CI
+
+# The full quality gate. Runs on every push to `dev` and on every pull request. The release
+# workflow calls it for pushes to `main`, so nothing is released without passing it.
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev, main]
+  workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+  workflow_dispatch:
+
+concurrency:
+  group: dev-ci-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  HUSKY: '0'
+
+jobs:
+  commits:
+    name: Commit messages
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: Lint the pull request's commit messages
+        run: >-
+          pnpm exec commitlint --verbose
+          --from ${{ github.event.pull_request.base.sha }}
+          --to ${{ github.event.pull_request.head.sha }}
+
+  typecheck:
+    name: Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - name: Typecheck (TypeScript 7)
+        run: pnpm typecheck
+      - name: Typecheck (TypeScript 6 fallback)
+        run: pnpm typecheck:fallback
+      - name: svelte-check
+        run: pnpm check
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - name: ESLint
+        run: pnpm lint
+      - name: Prettier
+        run: pnpm format:check
+
+  unit:
+    name: Unit, component and story tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          playwright-browsers: chromium
+      - name: Tests with the coverage gate
+        run: pnpm test:coverage
+      - name: Coverage summary
+        if: ${{ !cancelled() }}
+        run: node scripts/coverage-summary.ts coverage/unit/coverage-summary.json 'Unit coverage' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload coverage to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage/unit/lcov.info
+          flags: unit
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+      - name: Keep the coverage report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-unit
+          path: coverage/unit
+          retention-days: 7
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: pnpm build
+      - name: Smoke test the CLI
+        run: |
+          node dist/host/cli.js --version
+          node dist/host/cli.js --port 3000 &
+          for _ in $(seq 1 20); do curl -fsS http://127.0.0.1:3000/healthz && exit 0; sleep 0.5; done
+          exit 1
+      - name: Keep the build
+        uses: actions/upload-artifact@v7
+        with:
+          name: build
+          path: |
+            build
+            dist/host
+          retention-days: 7
+
+  storybook:
+    name: Storybook
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: pnpm build:storybook
+      - name: Keep the Storybook
+        uses: actions/upload-artifact@v7
+        with:
+          name: storybook
+          path: storybook-static
+          retention-days: 7
+
+  e2e:
+    name: E2E (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          playwright-browsers: ${{ matrix.browser }}
+      # Chromium also measures coverage, which needs an instrumented build (source maps).
+      - name: Run the e2e suite with coverage
+        if: matrix.browser == 'chromium'
+        run: pnpm test:e2e:coverage
+      - name: Run the e2e suite
+        if: matrix.browser != 'chromium'
+        run: pnpm build && pnpm exec playwright test --project=${{ matrix.browser }}
+      - name: Coverage summary
+        if: matrix.browser == 'chromium' && !cancelled()
+        run: node scripts/coverage-summary.ts coverage/e2e/coverage-summary.json 'End-to-end coverage' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload coverage to Codecov
+        if: matrix.browser == 'chromium' && !cancelled()
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage/e2e/lcov.info
+          flags: e2e
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+      - name: Keep the report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-${{ matrix.browser }}
+          path: |
+            playwright-report
+            test-results
+            coverage/e2e
+          retention-days: 7
+
+  e2e-electron:
+    name: E2E (Electron)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: pnpm build
+      - name: Run the Electron e2e suite
+        run: xvfb-run --auto-servernum pnpm test:e2e:electron
+      - name: Package the desktop app (unpacked)
+        run: pnpm electron:pack
+      - name: Keep the report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-electron
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Build the image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          tags: aide:ci
+          load: true
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,scope=app,mode=max
+      - name: Start the container and wait until it is healthy
+        run: |
+          docker run -d --name aide -p 3000:3000 aide:ci
+          for _ in $(seq 1 30); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' aide)" = healthy ] && exit 0
+            sleep 2
+          done
+          docker logs aide
+          exit 1
+      - uses: ./.github/actions/setup
+        with:
+          playwright-browsers: chromium
+      - name: Run the e2e suite against the container
+        run: pnpm exec playwright test --project=chromium
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+      - name: Stop the container
+        if: ${{ always() }}
+        run: docker logs aide && docker stop aide
+
+  docs:
+    name: Docs
+    uses: ./.github/workflows/docs.yml
+
+  # A single required check for branch protection.
+  ci-passed:
+    name: CI passed
+    if: ${{ always() }}
+    needs: [commits, typecheck, lint, unit, build, storybook, e2e, e2e-electron, docker, docs]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check that every job passed (or was skipped)
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: echo "$NEEDS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")'

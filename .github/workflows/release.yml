@@ -1,0 +1,195 @@
+name: Release
+
+# Pushes to `main` (normally a merge from `dev`) are released:
+#
+#   1. Dev CI runs in full. Nothing is released unless it passes.
+#   2. semantic-release works out the version from the commits, tags it, writes the changelog
+#      and creates the GitHub release with the npm package (.tgz) attached.
+#   3. If a release was cut: the Docker image is pushed to GHCR, the desktop installers are
+#      built on Linux, Windows and macOS and attached to the release, and `dev` is brought
+#      up to date with the release commit.
+#   4. The documentation, with the Storybook, is published to GitHub Pages.
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  HUSKY: '0'
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/dev.yml
+    secrets: inherit
+
+  release:
+    name: Semantic release
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          # semantic-release pushes with its own token (below).
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Release
+        id: release
+        run: pnpm exec semantic-release
+        env:
+          # A token that may push to the protected `main`, for the release commit and tag.
+          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+  docker:
+    name: Publish the Docker image
+    needs: release
+    if: needs.release.outputs.version != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: v${{ needs.release.outputs.version }}
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          # Container image names must be lower case.
+          images: ghcr.io/mondarth/aide
+          tags: |
+            type=semver,pattern={{version}},value=v${{ needs.release.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=v${{ needs.release.outputs.version }}
+            type=semver,pattern={{major}},value=v${{ needs.release.outputs.version }}
+            type=raw,value=latest
+      - name: Build and push
+        id: push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,scope=app,mode=max
+
+  desktop:
+    name: Desktop installers (${{ matrix.os }})
+    needs: release
+    if: needs.release.outputs.version != ''
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: v${{ needs.release.outputs.version }}
+      - uses: ./.github/actions/setup
+      - run: pnpm build
+      - name: Build the installers
+        run: pnpm electron:dist
+        env:
+          # The installers are unsigned until signing certificates are configured.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Attach the installers to the release
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(dist/electron/*.{AppImage,deb,exe,dmg,zip})
+          gh release upload "v${{ needs.release.outputs.version }}" "${files[@]}" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sync-dev:
+    name: Bring dev up to date
+    needs: release
+    if: needs.release.outputs.version != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      # Fast-forwards dev onto the release commit. If dev has moved on, opens a pull request instead.
+      - name: Merge main into dev
+        run: |
+          git fetch origin dev
+          if git merge-base --is-ancestor origin/dev HEAD; then
+            git push origin HEAD:dev
+          elif ! gh pr list --base dev --head main --state open --json number --jq '.[0]' | grep -q .; then
+            gh pr create --base dev --head main \
+              --title "chore(release): merge v${{ needs.release.outputs.version }} back into dev" \
+              --body "Brings the release commit (version, changelog) from main back into dev."
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+  docs:
+    name: Docs
+    needs: release
+    uses: ./.github/workflows/docs.yml
+    with:
+      ref: ${{ needs.release.outputs.version != '' && format('v{0}', needs.release.outputs.version) || github.sha }}
+
+  pages:
+    name: Publish to GitHub Pages
+    needs: [release, docs]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.version != '' && format('v{0}', needs.release.outputs.version) || github.sha }}
+      - uses: ./.github/actions/setup
+      - name: Build the Storybook
+        run: pnpm build:storybook
+      - uses: actions/download-artifact@v8
+        with:
+          name: documentation
+          path: site
+      - name: Add the Storybook to the site
+        run: cp -r storybook-static site/storybook
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

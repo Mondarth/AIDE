@@ -1,0 +1,33 @@
+# Packages the desktop app. Run `pnpm build` first; then `pnpm electron:pack` (unpacked, for a
+# quick check) or `pnpm electron:dist` (installers). Output goes to dist/electron.
+appId: io.github.mondarth.aide
+productName: AIDE
+executableName: aide
+copyright: Copyright © 2025 Ulenar of Mondarth
+
+directories:
+  output: dist/electron
+
+# The app is the built web app plus the bundled host; neither needs node_modules at run time.
+files:
+  - package.json
+  - build/**
+  - dist/host/**
+  - '!dist/electron/**'
+  - '!**/*.map'
+asar: true
+
+linux:
+  target: [AppImage, deb]
+  category: Development
+  maintainer: Ulenar of Mondarth
+win:
+  target: [nsis]
+nsis:
+  artifactName: ${productName}-Setup-${version}.${ext}
+mac:
+  target: [dmg, zip]
+  category: public.app-category.developer-tools
+
+# Release assets are uploaded by the release workflow, not by electron-builder.
+publish: null

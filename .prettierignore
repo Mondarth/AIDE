@@ -1,0 +1,15 @@
+pnpm-lock.yaml
+/static/
+/build/
+/dist/
+/.svelte-kit/
+/storybook-static/
+/coverage/
+/.vitest/
+/test-results/
+/playwright-report/
+/releases/
+src/lib/paraglide/
+docs/_build/
+docs/api/reference/
+CHANGELOG.md

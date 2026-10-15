@@ -1,0 +1,22 @@
+# Only what the image build needs. Everything else stays out of the build context.
+**/node_modules
+.git
+.github
+.husky
+.storybook
+.vscode
+.vitest
+build
+dist
+coverage
+docs
+playwright-report
+releases
+storybook-static
+test-results
+tests
+src/lib/paraglide
+.svelte-kit
+**/*.log
+**/.env
+**/.env.*

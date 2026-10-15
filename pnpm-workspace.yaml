@@ -1,0 +1,20 @@
+# pnpm settings (pnpm 12 reads its settings from this file).
+engineStrict: true
+
+# Only these dependencies may run install scripts. Everything else is blocked.
+allowBuilds:
+  # Squirrel.Windows tooling; AIDE builds an NSIS installer instead.
+  electron-winstaller: false
+  # Its install script only re-checks the platform binary that pnpm already installed.
+  esbuild: false
+
+# Packages newer than pnpm's minimum release age, accepted when the project was scaffolded.
+# Remove entries once those versions have aged past the threshold.
+minimumReleaseAgeExclude:
+  - '@inlang/paraglide-js@2.28.0'
+  - '@inlang/sdk@4.0.4'
+  - '@playwright/test@1.64.1'
+  - '@sveltejs/kit@3.1.0'
+  - eslint-plugin-jsdoc@65.3.4
+  - playwright-core@1.64.1
+  - playwright@1.64.1

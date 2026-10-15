@@ -1,0 +1,49 @@
+name: Set up the project
+description: >-
+  Installs pnpm (the version pinned in package.json), Node.js (.nvmrc) and the dependencies,
+  and optionally the Playwright browsers.
+
+inputs:
+  playwright-browsers:
+    description: Space-separated Playwright browsers to install, for example "chromium firefox". Empty for none.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v6
+
+    - uses: actions/setup-node@v7
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
+
+    - name: Find the Playwright version
+      if: inputs.playwright-browsers != ''
+      id: playwright
+      shell: bash
+      run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+    - name: Cache the Playwright browsers
+      if: inputs.playwright-browsers != ''
+      id: playwright-cache
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-${{ inputs.playwright-browsers }}
+
+    - name: Install the Playwright browsers
+      if: inputs.playwright-browsers != '' && steps.playwright-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: pnpm exec playwright install --with-deps ${{ inputs.playwright-browsers }}
+
+    # The browsers are cached but their system libraries are not.
+    - name: Install the browsers' system dependencies
+      if: inputs.playwright-browsers != '' && steps.playwright-cache.outputs.cache-hit == 'true'
+      shell: bash
+      run: pnpm exec playwright install-deps ${{ inputs.playwright-browsers }}

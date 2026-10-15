@@ -1,0 +1,24 @@
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
+flags:
+  unit:
+    paths: [src/, host/]
+    carryforward: true
+  e2e:
+    paths: [src/, host/]
+    carryforward: true
+
+# The e2e report also lists generated files that have no source maps.
+ignore:
+  - build/**
+  - '127.0.0.1-*/**'
+
+comment:
+  layout: 'condensed_header, diff, flags, files'

@@ -1,0 +1,16 @@
+import type { Config } from 'prettier';
+
+const config: Config = {
+  printWidth: 120,
+  tabWidth: 2,
+  useTabs: false,
+  singleQuote: true,
+  semi: true,
+  trailingComma: 'all',
+  arrowParens: 'avoid',
+  bracketSameLine: true,
+  plugins: ['prettier-plugin-svelte'],
+  overrides: [{ files: '*.svelte', options: { parser: 'svelte' } }],
+};
+
+export default config;

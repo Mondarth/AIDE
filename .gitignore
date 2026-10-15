@@ -1,0 +1,43 @@
+node_modules/
+
+# Build output
+/build/
+/dist/
+/.svelte-kit/
+/storybook-static/
+/releases/
+*.tsbuildinfo
+
+# Generated sources
+src/lib/paraglide/
+project.inlang/cache/
+docs/api/reference/
+docs/_build/
+
+# Test output
+/coverage/
+/test-results/
+/.vitest/
+/playwright-report/
+/blob-report/
+
+# Logs
+*.log
+debug-storybook.log
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Vite
+vite.config.ts.timestamp-*
+vite.host.config.ts.timestamp-*
+
+# Editors and OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
