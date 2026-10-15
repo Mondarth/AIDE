@@ -9,9 +9,15 @@ name: Release
 #      built on Linux, Windows and macOS and attached to the release, and `dev` is brought
 #      up to date with the release commit.
 #   4. The documentation, with the Storybook, is published to GitHub Pages.
+#
+# It can also be started by hand on `main` (Actions > Release > Run workflow), for example to
+# publish Pages again after a stalled deployment: Pages names deployments after the commit, so a
+# re-run cannot replace a cancelled one, but a manual run releases only if there is something to
+# release and otherwise just republishes the documentation.
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: release
@@ -26,6 +32,8 @@ env:
 jobs:
   ci:
     name: CI
+    # A manual run can be started on any branch; only main is released and published.
+    if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/dev.yml
     secrets: inherit
 
@@ -220,9 +228,13 @@ jobs:
       - name: Add the Storybook to the site
         run: cp -r storybook-static site/storybook
       - uses: actions/configure-pages@v6
+      # One artifact per attempt: a re-run of this job otherwise finds two named github-pages.
       - uses: actions/upload-pages-artifact@v5
         with:
+          name: github-pages-${{ github.run_attempt }}
           path: site
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
