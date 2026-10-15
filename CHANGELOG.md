@@ -1,3 +1,9 @@
+## [0.0.2](https://github.com/Mondarth/AIDE/compare/v0.0.1...v0.0.2) (2026-10-15)
+
+### Bug Fixes
+
+* **electron:** name the deb installer without the package scope ([961df55](https://github.com/Mondarth/AIDE/commit/961df55f9e2856c529a4b5d4f28d4848277e1766))
+
 ## [0.0.1](https://github.com/Mondarth/AIDE/compare/v0.0.0...v0.0.1) (2026-10-15)
 
 ### Bug Fixes

@@ -9,7 +9,7 @@ project = 'AIDE'
 copyright = '2025, Ulenar of Mondarth'
 author = 'Ulenar of Mondarth'
 # Rewritten by semantic-release (see release.config.mjs); keep this line's format.
-release = '0.0.1'
+release = '0.0.2'
 
 # -- General configuration ---------------------------------------------------
 
