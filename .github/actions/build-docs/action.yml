@@ -1,0 +1,31 @@
+name: Build the documentation
+description: >-
+  Builds the API reference with TypeDoc, then the Sphinx site in Docker, into docs/_build/html.
+  Run ./.github/actions/setup first.
+
+runs:
+  using: composite
+  steps:
+    - name: Generate the API reference (TypeDoc)
+      shell: bash
+      run: pnpm docs:api
+
+    - uses: docker/setup-buildx-action@v4
+
+    # All Python tooling lives in the image built from docs/Dockerfile; nothing is
+    # installed on the runner.
+    - name: Build the Sphinx image
+      uses: docker/build-push-action@v7
+      with:
+        context: docs
+        tags: aide-docs
+        load: true
+        cache-from: type=gha,scope=docs
+        cache-to: type=gha,scope=docs,mode=max
+
+    # Warnings fail the build (see docs/Makefile).
+    - name: Build the documentation
+      shell: bash
+      run: |
+        DOCS_UID=$(id -u) DOCS_GID=$(id -g) \
+          docker compose -f docs/compose.yaml run --rm --no-deps -T docs make html

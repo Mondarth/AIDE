@@ -26,7 +26,7 @@ Superseded runs of the same pull request are cancelled.
 
 ## Docs (`docs.yml`)
 
-Generates the API reference, builds the Sphinx image (cached) and the site, and keeps the HTML as an artifact. Called by Dev CI and Release; can also be started by hand.
+Generates the API reference, builds the Sphinx image (cached) and the site, and keeps the HTML as an artifact. Called by Dev CI; can also be started by hand. The build steps live in the `build-docs` composite action (`.github/actions/build-docs`), which the release workflow's Pages job also uses to build the documentation from the release tag.
 
 (release-workflow)=
 

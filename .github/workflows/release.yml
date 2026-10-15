@@ -196,16 +196,9 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           VERSION: ${{ needs.release.outputs.version }}
 
-  docs:
-    name: Docs
-    needs: release
-    uses: ./.github/workflows/docs.yml
-    with:
-      ref: ${{ needs.release.outputs.version != '' && format('v{0}', needs.release.outputs.version) || github.sha }}
-
   pages:
     name: Publish to GitHub Pages
-    needs: [release, docs]
+    needs: release
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -219,14 +212,15 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.version != '' && format('v{0}', needs.release.outputs.version) || github.sha }}
       - uses: ./.github/actions/setup
+      # Built here rather than by docs.yml, so the documentation carries the release's version.
+      - uses: ./.github/actions/build-docs
       - name: Build the Storybook
         run: pnpm build:storybook
-      - uses: actions/download-artifact@v8
-        with:
-          name: documentation
-          path: site
-      - name: Add the Storybook to the site
-        run: cp -r storybook-static site/storybook
+      - name: Put the site together
+        run: |
+          mkdir site
+          cp -r docs/_build/html/. site/
+          cp -r storybook-static site/storybook
       - uses: actions/configure-pages@v6
       # One artifact per attempt: a re-run of this job otherwise finds two named github-pages.
       - uses: actions/upload-pages-artifact@v5

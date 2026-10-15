@@ -44,3 +44,26 @@ describe('release workflow', () => {
     expect(inputsOf('actions/deploy-pages').artifact_name).toBe(uploaded);
   });
 });
+
+describe('docs workflow', () => {
+  /*
+   * With release.yml startable by hand, CodeQL reports cache poisoning (actions/cache-poisoning)
+   * when docs.yml checks out a ref passed in as an input and then writes caches. The release
+   * builds its documentation in the Pages job instead, so docs.yml takes no ref.
+   */
+  const docs = parse(readFileSync('.github/workflows/docs.yml', 'utf8')) as Workflow;
+
+  it('takes no ref to check out', () => {
+    expect(docs.on.workflow_call ?? {}).not.toHaveProperty('inputs.ref');
+  });
+
+  it('is not called by the release workflow', () => {
+    const uses = Object.values(workflow.jobs).map(job => (job as { uses?: string }).uses);
+    expect(uses).not.toContain('./.github/workflows/docs.yml');
+  });
+
+  it('shares its build steps with the Pages job', () => {
+    expect(docs.jobs.build?.steps?.map(step => step.uses)).toContain('./.github/actions/build-docs');
+    expect(workflow.jobs.pages?.steps?.map(step => step.uses)).toContain('./.github/actions/build-docs');
+  });
+});
