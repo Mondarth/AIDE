@@ -5,16 +5,42 @@ What the repository needs on GitHub for the workflows in {doc}`ci-cd` to work.
 ## Branches
 
 - Create `dev` from `main` and make it the default branch, so that pull requests target it.
-- Protect `main` and `dev`: require pull requests, and require the **CI passed** status check.
+- Protect both branches with a ruleset (Settings → Rules → Rulesets), targeting `dev` and `main`:
+  - **Require a pull request before merging**, with **0** required approvals (you cannot approve your own pull request). Allow merge commits: merge `dev` into `main` with a merge commit, never a squash, so that semantic-release sees every commit and the branches do not diverge.
+  - **Require status checks to pass**: **CI passed**.
+  - **Bypass list**: the release App (below), mode **Always**. Nobody else, not even administrators, so every human change goes through a pull request.
 
-## Secrets
+(release-app)=
 
-| Secret                  | Used by | Purpose                                                                                                                                                                                                  |
-| ----------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PERSONAL_ACCESS_TOKEN` | Release | Pushes the release commit and tag to the protected `main`, creates the release, and updates `dev`. Needs `contents: write` and `pull-requests: write` on this repository (a fine-grained token is best). |
-| `CODECOV_TOKEN`         | Dev CI  | Uploads coverage to [Codecov](https://about.codecov.io). Optional: without it the upload is skipped and CI still passes.                                                                                 |
+## The release App
 
-`GITHUB_TOKEN` covers everything else, including pushing the image to GHCR.
+The release workflow pushes to the protected branches: semantic-release pushes the release commit and tag to `main`, and the _Bring dev up to date_ job fast-forwards `dev`. It does this as a GitHub App, which is the only actor allowed to bypass the rulesets. Each run gets a token that expires within an hour; there is no long-lived token to rotate.
+
+To set it up:
+
+1. **Create the App**: organisation (or account) Settings → Developer settings → GitHub Apps → **New GitHub App**.
+   - Name: anything unique, for example `mondarth-aide-release`. Homepage URL: the repository's URL.
+   - Webhook: untick **Active**.
+   - Repository permissions: **Contents**, **Pull requests** and **Issues**, all **Read and write** (Metadata: read-only is added automatically).
+   - Where can this App be installed: **Only on this account**.
+2. **Generate a private key** on the App's page (a `.pem` file downloads), and note the **Client ID** (in the _About_ section at the top of the App's _General_ page; it starts with `Iv`).
+3. **Install the App** (Install App → your organisation → **Only select repositories** → this repository).
+4. **Store the credentials** in the repository (Settings → Secrets and variables → Actions): the Client ID as the _variable_ `RELEASE_APP_CLIENT_ID`, and the whole `.pem` file as the _secret_ `RELEASE_APP_PRIVATE_KEY`. Then delete the downloaded file.
+5. **Add the App to the rulesets' bypass list** (above).
+
+Release commits are authored by `<app-name>[bot]`. If the private key leaks, revoke it on the App's page and generate a new one.
+
+If the push to `dev` is refused, or `dev` has moved on since the release, the workflow opens a pull request from `main` to `dev` instead; merge it with a merge commit.
+
+## Secrets and variables
+
+| Name                      | Kind     | Used by | Purpose                                                                                                                  |
+| ------------------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `RELEASE_APP_CLIENT_ID`   | Variable | Release | The release App's Client ID (see {ref}`release-app`).                                                                    |
+| `RELEASE_APP_PRIVATE_KEY` | Secret   | Release | The release App's private key.                                                                                           |
+| `CODECOV_TOKEN`           | Secret   | Dev CI  | Uploads coverage to [Codecov](https://about.codecov.io). Optional: without it the upload is skipped and CI still passes. |
+
+`GITHUB_TOKEN` covers everything else, including pushing the image to GHCR and attaching the installers to the release.
 
 ## Settings
 
