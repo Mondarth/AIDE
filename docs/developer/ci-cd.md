@@ -44,8 +44,10 @@ Runs on every push to `main`:
 3. If a release was cut, in parallel:
    - **Docker image**: built for `linux/amd64` and `linux/arm64` with provenance and an SBOM, and pushed to `ghcr.io/mondarth/aide` as `<version>`, `<major>.<minor>`, `<major>` and `latest`.
    - **Desktop installers**: built on Linux, Windows and macOS and attached to the release.
-   - **Bring dev up to date**: fast-forwards `dev` to the release commit, or opens a pull request from `main` to `dev`.
+   - **Bring dev up to date**: fast-forwards `dev` to the release commit, or opens a pull request from `main` to `dev` if it cannot.
 4. **Pages**: builds the documentation and the Storybook for the released tag (or for `main`, if nothing was released) and deploys them to GitHub Pages.
+
+The jobs that push to the protected branches authenticate as the release App (see {ref}`release-app`).
 
 `pnpm release:dry-run` checks the semantic-release configuration locally without releasing anything.
 

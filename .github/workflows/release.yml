@@ -40,18 +40,38 @@ jobs:
     outputs:
       version: ${{ steps.release.outputs.version }}
     steps:
+      # The release App is on the rulesets' bypass list, so its token may push to the
+      # protected branches. Each token expires within an hour.
+      - name: Get a release token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+      - name: Commit as the release App
+        id: identity
+        run: |
+          name='${{ steps.app-token.outputs.app-slug }}[bot]'
+          id=$(gh api "/users/${name}" --jq .id)
+          echo "name=${name}" >> "$GITHUB_OUTPUT"
+          echo "email=${id}+${name}@users.noreply.github.com" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          # semantic-release pushes with its own token (below).
+          # semantic-release pushes with the App token (below).
           persist-credentials: false
       - uses: ./.github/actions/setup
       - name: Release
         id: release
         run: pnpm exec semantic-release
         env:
-          # A token that may push to the protected `main`, for the release commit and tag.
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          GIT_AUTHOR_NAME: ${{ steps.identity.outputs.name }}
+          GIT_AUTHOR_EMAIL: ${{ steps.identity.outputs.email }}
+          GIT_COMMITTER_NAME: ${{ steps.identity.outputs.name }}
+          GIT_COMMITTER_EMAIL: ${{ steps.identity.outputs.email }}
 
   docker:
     name: Publish the Docker image
@@ -136,24 +156,37 @@ jobs:
     if: needs.release.outputs.version != ''
     runs-on: ubuntu-latest
     steps:
+      # The release App is on the rulesets' bypass list, so its token may push to the
+      # protected branches. Each token expires within an hour.
+      - name: Get a release token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
       - uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-      # Fast-forwards dev onto the release commit. If dev has moved on, opens a pull request instead.
+          token: ${{ steps.app-token.outputs.token }}
+      # Fast-forwards dev onto the release commit. If dev has moved on, or the push is refused,
+      # opens a pull request from main to dev instead (unless one is already open).
       - name: Merge main into dev
         run: |
           git fetch origin dev
-          if git merge-base --is-ancestor origin/dev HEAD; then
-            git push origin HEAD:dev
-          elif ! gh pr list --base dev --head main --state open --json number --jq '.[0]' | grep -q .; then
-            gh pr create --base dev --head main \
-              --title "chore(release): merge v${{ needs.release.outputs.version }} back into dev" \
-              --body "Brings the release commit (version, changelog) from main back into dev."
+          if git merge-base --is-ancestor origin/dev HEAD && git push origin HEAD:dev; then
+            exit 0
           fi
+          if gh pr list --base dev --head main --state open --json number --jq '.[0]' | grep -q .; then
+            echo "A pull request from main to dev is already open."
+            exit 0
+          fi
+          gh pr create --base dev --head main \
+            --title "chore(release): merge v${VERSION} back into dev" \
+            --body "Brings the release commit (version, changelog) from main back into dev."
         env:
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ needs.release.outputs.version }}
 
   docs:
     name: Docs
