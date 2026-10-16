@@ -13,6 +13,16 @@
   "bugs": {
     "url": "https://github.com/Mondarth/AIDE/issues"
   },
+  "funding": [
+    {
+      "type": "patreon",
+      "url": "https://patreon.com/Mondarth"
+    },
+    {
+      "type": "ko-fi",
+      "url": "https://ko-fi.com/ulenarofmondarth"
+    }
+  ],
   "keywords": [
     "adventure",
     "ttrpg",
